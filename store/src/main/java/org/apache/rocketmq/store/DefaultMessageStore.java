@@ -62,30 +62,40 @@ import org.apache.rocketmq.store.stats.BrokerStatsManager;
 public class DefaultMessageStore implements MessageStore {
     private static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.STORE_LOGGER_NAME);
 
+    // 消息存储的配置属性
     private final MessageStoreConfig messageStoreConfig;
-    // CommitLog
+    // CommitLog 文件存储实现
     private final CommitLog commitLog;
 
+    // 消息队列缓存表
     private final ConcurrentMap<String/* topic */, ConcurrentMap<Integer/* queueId */, ConsumeQueue>> consumeQueueTable;
 
+    // consumerQueue 文件的刷盘服务
     private final FlushConsumeQueueService flushConsumeQueueService;
 
+    // commitlog 文件清理服务
     private final CleanCommitLogService cleanCommitLogService;
 
+    // consumerQueue 文件清理服务
     private final CleanConsumeQueueService cleanConsumeQueueService;
 
+    // indexFile 索引文件实现类
     private final IndexService indexService;
 
+    // mappedFile 文件分配服务
     private final AllocateMappedFileService allocateMappedFileService;
 
+    // CommitLog 消息分发，根据 CommitLog 文件构建 ConsumerQueue、IndexFile 文件
     private final ReputMessageService reputMessageService;
 
+    // 存储的 HA 机制
     private final HAService haService;
 
     private final ScheduleMessageService scheduleMessageService;
 
     private final StoreStatsService storeStatsService;
 
+    // 消息堆内存缓存
     private final TransientStorePool transientStorePool;
 
     private final RunningFlags runningFlags = new RunningFlags();
@@ -95,14 +105,17 @@ public class DefaultMessageStore implements MessageStore {
         Executors.newSingleThreadScheduledExecutor(new ThreadFactoryImpl("StoreScheduledThread"));
     private final BrokerStatsManager brokerStatsManager;
     private final MessageArrivingListener messageArrivingListener;
+    // Broker 配置信息
     private final BrokerConfig brokerConfig;
 
     private volatile boolean shutdown = true;
 
+    // 文件刷盘检测点
     private StoreCheckpoint storeCheckpoint;
 
     private AtomicLong printTimes = new AtomicLong(0);
 
+    // CommitLog 文件转发请求
     private final LinkedList<CommitLogDispatcher> dispatcherList;
 
     private RandomAccessFile lockFile;
@@ -179,6 +192,7 @@ public class DefaultMessageStore implements MessageStore {
             log.info("last shutdown {}", lastExitOK ? "normally" : "abnormally");
 
             if (null != scheduleMessageService) {
+                // 加载延时队列，定时消息相关
                 result = result && this.scheduleMessageService.load();
             }
 
@@ -351,6 +365,7 @@ public class DefaultMessageStore implements MessageStore {
         }
     }
 
+    // 消息存储的入口
     public PutMessageResult putMessage(MessageExtBrokerInner msg) {
         if (this.shutdown) {
             log.warn("message store has shutdown, so putMessage is forbidden");
@@ -358,6 +373,7 @@ public class DefaultMessageStore implements MessageStore {
         }
 
         if (BrokerRole.SLAVE == this.messageStoreConfig.getBrokerRole()) {
+            // SLAVE 角色的 Broker 拒绝写入消息
             long value = this.printTimes.getAndIncrement();
             if ((value % 50000) == 0) {
                 log.warn("message store is slave mode, so putMessage is forbidden ");
@@ -366,6 +382,7 @@ public class DefaultMessageStore implements MessageStore {
             return new PutMessageResult(PutMessageStatus.SERVICE_NOT_AVAILABLE, null);
         }
 
+        // 当前 Broker 不支持写入，则拒绝写入
         if (!this.runningFlags.isWriteable()) {
             long value = this.printTimes.getAndIncrement();
             if ((value % 50000) == 0) {
@@ -377,11 +394,13 @@ public class DefaultMessageStore implements MessageStore {
             this.printTimes.set(0);
         }
 
+        // TOPIC 长度超过 127 个字符，拒绝写入
         if (msg.getTopic().length() > Byte.MAX_VALUE) {
             log.warn("putMessage message topic length too long " + msg.getTopic().length());
             return new PutMessageResult(PutMessageStatus.MESSAGE_ILLEGAL, null);
         }
 
+        // 消息属性长度大于 32767，拒绝写入
         if (msg.getPropertiesString() != null && msg.getPropertiesString().length() > Short.MAX_VALUE) {
             log.warn("putMessage message properties length too long " + msg.getPropertiesString().length());
             return new PutMessageResult(PutMessageStatus.PROPERTIES_SIZE_EXCEEDED, null);
@@ -1534,7 +1553,9 @@ public class DefaultMessageStore implements MessageStore {
 
         private void deleteExpiredFiles() {
             int deleteCount = 0;
+            // 文件保留时间
             long fileReservedTime = DefaultMessageStore.this.getMessageStoreConfig().getFileReservedTime();
+            // 删除物理文件的时间间隔
             int deletePhysicFilesInterval = DefaultMessageStore.this.getMessageStoreConfig().getDeleteCommitLogFilesInterval();
             int destroyMapedFileIntervalForcibly = DefaultMessageStore.this.getMessageStoreConfig().getDestroyMapedFileIntervalForcibly();
 

@@ -84,6 +84,7 @@ public class NamesrvController {
 
         this.registerProcessor();
 
+        // 每 10s 扫描一次 broker，移除处于不激活状态的 broker
         this.scheduledExecutorService.scheduleAtFixedRate(new Runnable() {
 
             @Override
@@ -92,6 +93,7 @@ public class NamesrvController {
             }
         }, 5, 10, TimeUnit.SECONDS);
 
+        // 每 10s 打印一次 KV 配置
         this.scheduledExecutorService.scheduleAtFixedRate(new Runnable() {
 
             @Override

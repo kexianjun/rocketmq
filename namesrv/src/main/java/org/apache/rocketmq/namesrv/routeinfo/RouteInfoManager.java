@@ -174,6 +174,7 @@ public class RouteInfoManager {
                     }
                 }
 
+                // 非 master 节点，则查找 对应的 master broker，并更新当前节点的 masterAddr 信息
                 if (MixAll.MASTER_ID != brokerId) {
                     String masterAddr = brokerData.getBrokerAddrs().get(MixAll.MASTER_ID);
                     if (masterAddr != null) {
