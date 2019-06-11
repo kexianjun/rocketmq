@@ -52,7 +52,8 @@ public class MappedFile extends ReferenceResource {
     // 当前该文件的写指针
     protected final AtomicInteger wrotePosition = new AtomicInteger(0);
     //ADD BY ChenYang
-    // 当前文件的提交指针
+    // 当前文件的提交指针，如果开启了 transientStorePoolEnable，则数据会先存储在 transientStorePool 中，
+    // 然后再提交到内存映射文件 ByteBuffer 中，再刷写到磁盘
     protected final AtomicInteger committedPosition = new AtomicInteger(0);
     // 刷写到磁盘的指针，该指针之前的数据持久化到磁盘中
     private final AtomicInteger flushedPosition = new AtomicInteger(0);
